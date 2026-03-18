@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>90 Years — Memento Mori</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #f5f5f0;
+    --fg: #0a0a0a;
+    --accent: #c0392b;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    user-select: none;
+  }
+
+  /* ── INPUT SCREEN ─────────────────────────────────── */
+  #input-screen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    background: var(--bg);
+    transition: opacity 0.8s ease;
+  }
+  #input-screen.hidden { opacity: 0; pointer-events: none; }
+
+  .input-title {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    letter-spacing: 0.5em;
+    text-transform: uppercase;
+    color: var(--fg);
+    margin-bottom: 8px;
+  }
+  .input-subtitle {
+    font-family: 'Courier New', monospace;
+    font-size: 8px;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: #aaa;
+    margin-bottom: 40px;
+  }
+  #birth-input {
+    font-family: 'Courier New', monospace;
+    font-size: 24px;
+    letter-spacing: 0.1em;
+    color: var(--fg);
+    background: transparent;
+    border: 2.5px solid var(--fg);
+    padding: 14px 22px;
+    width: 270px;
+    text-align: center;
+    outline: none;
+    -webkit-appearance: none;
+  }
+  #birth-input::placeholder { color: #ccc; }
+  #birth-input:focus { box-shadow: 5px 5px 0 var(--fg); }
+
+  #error-msg {
+    font-family: 'Courier New', monospace;
+    font-size: 8px;
+    letter-spacing: 0.28em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-top: 10px;
+    height: 14px;
+  }
+  #init-btn {
+    margin-top: 28px;
+    font-family: 'Courier New', monospace;
+    font-size: 9px;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--bg);
+    background: var(--fg);
+    border: 2.5px solid var(--fg);
+    padding: 13px 36px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  #init-btn:hover { background: var(--bg); color: var(--fg); }
+
+  .input-footer {
+    position: absolute;
+    bottom: 26px;
+    font-family: 'Courier New', monospace;
+    font-size: 7px;
+    letter-spacing: 0.35em;
+    color: #ccc;
+    text-transform: uppercase;
+  }
+
+  /* ── CANVAS LAYER ─────────────────────────────────── */
+  #canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: block;
+    cursor: crosshair;
+  }
+
+  /* ── OVERLAYS ─────────────────────────────────────── */
+  #status-bar {
+    position: fixed;
+    top: 18px; left: 22px;
+    font-family: 'Courier New', monospace;
+    font-size: 8px;
+    letter-spacing: 0.22em;
+    color: #999;
+    text-transform: uppercase;
+    z-index: 10;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1s ease;
+    line-height: 2;
+  }
+  #label {
+    position: fixed;
+    bottom: 30px; left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Courier New', monospace;
+    font-size: 8px;
+    letter-spacing: 0.28em;
+    color: #aaa;
+    text-transform: uppercase;
+    z-index: 10;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1s ease;
+    white-space: nowrap;
+  }
+  #hint {
+    position: fixed;
+    bottom: 14px; left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Courier New', monospace;
+    font-size: 7px;
+    letter-spacing: 0.3em;
+    color: #ccc;
+    text-transform: uppercase;
+    z-index: 10;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1.5s ease;
+    white-space: nowrap;
+  }
+  #death-text {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    letter-spacing: 0.35em;
+    color: var(--fg);
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 20;
+    line-height: 2.6;
+  }
+  #reset-btn {
+    position: fixed;
+    bottom: 40px; left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Courier New', monospace;
+    font-size: 8px;
+    letter-spacing: 0.3em;
+    color: #aaa;
+    text-transform: uppercase;
+    background: transparent;
+    border: 1px solid #ccc;
+    padding: 9px 22px;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 20;
+    transition: color 0.3s, border-color 0.3s;
+  }
+  #reset-btn:hover { color: var(--fg); border-color: var(--fg); }
+</style>
+</head>
+<body>
+
+<div id="input-screen">
+  <div class="input-title">Memento Mori</div>
+  <div class="input-subtitle">Enter your birth date (YYYY-MM-DD)</div>
+  <input id="birth-input" type="text" placeholder="1990-01-01" maxlength="10" autocomplete="off" spellcheck="false">
+  <div id="error-msg"></div>
+  <button id="init-btn">Initialize Life</button>
+  <div class="input-footer">Life is a microscopic magnification &nbsp;·&nbsp; 52 × 90 weeks</div>
+</div>
+
+<canvas id="canvas"></canvas>
+<video id="webcam" autoplay playsinline muted style="display:none;"></video>
+<div id="status-bar"></div>
+<div id="label"></div>
+<div id="hint">hold to magnify &nbsp;·&nbsp; release to disappear</div>
+<div id="death-text">
+  Death is a macroscopic disappearance.<br>
+  <span id="weeks-label" style="font-size:8px;letter-spacing:0.5em;color:#aaa">— weeks —</span>
+</div>
+<button id="reset-btn">↺ &nbsp; Begin Again</button>
+
+<script>
+// ── DOM ───────────────────────────────────────────────────────────────────
+const inputScreen = document.getElementById('input-screen');
+const birthInput  = document.getElementById('birth-input');
+const initBtn     = document.getElementById('init-btn');
+const errorMsg    = document.getElementById('error-msg');
+const canvas      = document.getElementById('canvas');
+const ctx         = canvas.getContext('2d');
+const statusBar   = document.getElementById('status-bar');
+const labelEl     = document.getElementById('label');
+const hintEl      = document.getElementById('hint');
+const deathText   = document.getElementById('death-text');
+const weeksLabel  = document.getElementById('weeks-label');
+const resetBtn    = document.getElementById('reset-btn');
+
+// ── Grid constants ────────────────────────────────────────────────────────
+const COLS    = 52;
+const ROWS    = 90;
+const CELL    = 10;
+const GAP     = 1;
+const TOTAL_W = COLS * (CELL + GAP) - GAP;
+const TOTAL_H = ROWS * (CELL + GAP) - GAP;
+
+const TODAY     = new Date();
+const TODAY_STR = TODAY.toISOString().slice(0, 10);
+
+// ── Life data ─────────────────────────────────────────────────────────────
+let lifeWeeks     = 0;
+let currentWeek   = 0;
+let currentCol    = 0;
+let currentRow    = 0;
+let birthDateStr  = '';
+let ageStr        = '';
+let totalWeeksStr = '';
+
+// ── App state machine ─────────────────────────────────────────────────────
+const S = { INPUT:'INPUT', FILLING:'FILLING', READY:'READY', ZOOMING_IN:'ZI', ZOOMING_OUT:'ZO', DEAD:'DEAD' };
+let appState = S.INPUT;
+
+// ── Fill animation ────────────────────────────────────────────────────────
+let filledUpTo = -1;
+let fillTarget  = 0;
+
+// ── Zoom ──────────────────────────────────────────────────────────────────
+let scale        = 1;
+let zoomVelocity = 0;
+let isHolding    = false;
+let holdStartTime = 0;
+
+// ── Canvas layout ─────────────────────────────────────────────────────────
+let W, H, originX, originY, pivotX, pivotY;
+
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  originX = (W - TOTAL_W) / 2;
+  originY = (H - TOTAL_H) / 2;
+  if (pivotX === undefined && currentWeek >= 0) {
+    pivotX = originX + currentCol * (CELL + GAP) + CELL / 2;
+    pivotY = originY + currentRow * (CELL + GAP) + CELL / 2;
+  }
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── Pseudo-random ─────────────────────────────────────────────────────────
+function pseudoRand(x, y, seed) {
+  const n = Math.sin(x * 127.1 + y * 311.7 + seed * 74.3) * 43758.5453;
+  return n - Math.floor(n);
+}
+
+let noiseOff   = 0;
+let blinkTimer = 0;
+let blinkOn    = true;
+
+// ── Webcam & Face Detection ───────────────────────────────────────────────
+const videoEl = document.getElementById('webcam');
+let camStream    = null;
+let faceDetector = null;
+let detectedFaces = [];          // latest face boxes (in video coords)
+let faceDetecting = false;       // lock to avoid overlapping detections
+let subjectId    = Math.floor(Math.random() * 89999 + 10000);
+let simulatedBPM = 68 + Math.floor(Math.random() * 24);
+let bpmDrift     = 0;
+let camReady     = false;
+let camError     = false;
+
+// ── Aura colour system ────────────────────────────────────────────────────
+// Aura palette: named colours with HSL values that feel mystical
+const AURA_PALETTE = [
+  { name: 'Violet Pulse',    h: 272, s: 72, l: 58 },
+  { name: 'Rose Quartz',     h: 340, s: 65, l: 68 },
+  { name: 'Sage Drift',      h: 152, s: 42, l: 52 },
+  { name: 'Amber Oracle',    h: 38,  s: 88, l: 58 },
+  { name: 'Cobalt Ether',    h: 220, s: 78, l: 56 },
+  { name: 'Crimson Thread',  h: 358, s: 70, l: 52 },
+  { name: 'Aqua Membrane',   h: 185, s: 60, l: 50 },
+  { name: 'Gold Resonance',  h: 47,  s: 90, l: 54 },
+  { name: 'Lilac Static',    h: 290, s: 50, l: 66 },
+  { name: 'Obsidian Breath', h: 240, s: 15, l: 28 },
+];
+
+let auraColor    = null;   // { name, h, s, l }
+let auraAlpha    = 0;      // 0→1 fade-in progress
+let auraRevealed = false;
+let auraRevealStart = 0;
+const AURA_REVEAL_DURATION = 3200; // ms — slow dramatic reveal
+
+function pickAura() {
+  // "Scan" for 2s, then reveal
+  setTimeout(() => {
+    auraColor = AURA_PALETTE[Math.floor(Math.random() * AURA_PALETTE.length)];
+    auraRevealed = true;
+    auraRevealStart = performance.now();
+    showAuraLabel();
+  }, 2000);
+}
+
+// ── Aura label UI ─────────────────────────────────────────────────────────
+function showAuraLabel() {
+  // Create or update floating aura label
+  let el = document.getElementById('aura-label');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'aura-label';
+    el.style.cssText = `
+      position:fixed; top:18px; right:22px;
+      font-family:'Courier New',monospace;
+      font-size:8px; letter-spacing:0.28em;
+      text-transform:uppercase; z-index:10;
+      pointer-events:none; opacity:0;
+      transition:opacity 2s ease;
+      line-height:2;
+    `;
+    document.body.appendChild(el);
+  }
+  const { name, h, s, l } = auraColor;
+  const hex = hslToHex(h, s, l);
+  el.style.color = `hsl(${h},${s}%,${Math.max(30, l - 20)}%)`;
+  el.innerHTML   = `Aura Detected<br><span style="letter-spacing:0.4em;font-size:10px;color:hsl(${h},${s}%,${l}%)">${name}</span>`;
+  requestAnimationFrame(() => { el.style.opacity = '1'; });
+}
+
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))));
+  };
+  return `#${[f(0),f(8),f(4)].map(v => v.toString(16).padStart(2,'0')).join('')}`;
+}
+
+async function initCamera() {
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false
+    });
+    videoEl.srcObject = camStream;
+    await new Promise(res => { videoEl.onloadedmetadata = res; });
+    await videoEl.play();
+    camReady = true;
+    pickAura(); // begin aura colour reveal sequence
+
+    // Init face detector — native FaceDetector API (Chrome/Edge)
+    if ('FaceDetector' in window) {
+      faceDetector = new FaceDetector({ fastMode: true, maxDetectedFaces: 3 });
+    }
+    // Start detection loop
+    detectFaces();
+  } catch (e) {
+    camError = true;
+    console.warn('Camera unavailable:', e.message);
+  }
+}
+
+async function detectFaces() {
+  if (!camReady || !faceDetector || faceDetecting) return;
+  faceDetecting = true;
+  try {
+    detectedFaces = await faceDetector.detect(videoEl);
+  } catch (_) {
+    detectedFaces = [];
+  }
+  faceDetecting = false;
+  // BPM gentle drift
+  bpmDrift += (Math.random() - 0.5) * 0.4;
+  bpmDrift   = Math.max(-8, Math.min(8, bpmDrift));
+  simulatedBPM = Math.round(Math.max(52, Math.min(110, simulatedBPM + bpmDrift * 0.1)));
+  // Schedule next detection (~8 fps — enough for tracking feel without perf hit)
+  setTimeout(detectFaces, 125);
+}
+
+function stopCamera() {
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  camReady = false;
+  detectedFaces = [];
+}
+
+// ── Draw webcam pixels masked to filled cells ─────────────────────────────
+function drawWebcamMasked(sc, px, py, visibleFilled) {
+  // Build clip from filled + current cells regardless
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.scale(sc, sc);
+  ctx.translate(-px, -py);
+
+  ctx.beginPath();
+  const r = CELL / 2;
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const idx = row * COLS + col;
+      if (idx >= visibleFilled && idx !== currentWeek) continue;
+      const cx = originX + col * (CELL + GAP) + r;
+      const cy = originY + row * (CELL + GAP) + r;
+      ctx.moveTo(cx + r, cy);
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    }
+  }
+  ctx.clip();
+
+  const gridLeft   = originX;
+  const gridTop    = originY;
+  const gridRight  = originX + TOTAL_W;
+  const gridBottom = originY + TOTAL_H;
+  const gridW = TOTAL_W, gridH = TOTAL_H;
+
+  if (camReady && videoEl.readyState >= 2) {
+    // Mirror video onto grid area
+    ctx.save();
+    ctx.translate(gridRight, gridTop);
+    ctx.scale(-1, 1);
+    ctx.drawImage(videoEl, 0, 0, gridW, gridH);
+    ctx.restore();
+    // Subtle dark overlay for legibility
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(gridLeft, gridTop, gridW, gridH);
+  } else {
+    // Fallback: original dark fill
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(gridLeft, gridTop, gridW, gridH);
+  }
+
+  ctx.restore();
+}
+
+// ── Draw face tracking boxes (world-space, inside zoom transform) ─────────
+function drawFaceTracking(sc, px, py, visibleFilled) {
+  if (!camReady || detectedFaces.length === 0) return;
+
+  const vw = videoEl.videoWidth  || 1;
+  const vh = videoEl.videoHeight || 1;
+  const gridW = TOTAL_W;
+  const gridH = TOTAL_H;
+
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.scale(sc, sc);
+  ctx.translate(-px, -py);
+
+  detectedFaces.forEach((face, fi) => {
+    const fb = face.boundingBox;
+    // Map from video coords → grid coords (accounting for mirror flip)
+    const scaleX = gridW / vw;
+    const scaleY = gridH / vh;
+    // Mirror X
+    const fx = originX + (vw - fb.x - fb.width)  * scaleX;
+    const fy = originY + fb.y  * scaleY;
+    const fw = fb.width  * scaleX;
+    const fh = fb.height * scaleY;
+
+    // Padding
+    const pad = fw * 0.12;
+    const bx = fx - pad, by = fy - pad;
+    const bw = fw + pad * 2, bh = fh + pad * 2;
+
+    // Corner length
+    const cl = Math.min(bw, bh) * 0.18;
+    const lw = 1 / sc;  // keep line width visually consistent at any zoom
+
+    ctx.save();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = lw * 1.2;
+    ctx.globalAlpha = 0.88;
+
+    // Draw corner crosshairs only (brutalist minimal box)
+    const corners = [
+      [bx,      by,      cl,  0,  0,  cl ],  // top-left
+      [bx+bw,   by,      -cl, 0,  0,  cl ],  // top-right
+      [bx,      by+bh,   cl,  0,  0, -cl ],  // bottom-left
+      [bx+bw,   by+bh,  -cl,  0,  0, -cl ],  // bottom-right
+    ];
+    corners.forEach(([ox, oy, hx, hy, vx, vy]) => {
+      ctx.beginPath();
+      ctx.moveTo(ox, oy); ctx.lineTo(ox + hx, oy + hy); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(ox, oy); ctx.lineTo(ox + vx, oy + vy); ctx.stroke();
+    });
+
+    // Centre crosshair
+    const cx2 = bx + bw / 2, cy2 = by + bh / 2;
+    const cs = lw * 5;
+    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = '#ff3333';
+    ctx.beginPath();
+    ctx.moveTo(cx2 - cs, cy2); ctx.lineTo(cx2 + cs, cy2); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx2, cy2 - cs); ctx.lineTo(cx2, cy2 + cs); ctx.stroke();
+
+    // Data readout label above box
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.82;
+    ctx.font         = `${lw * 7}px 'Courier New', monospace`;
+    ctx.fillStyle    = '#ffffff';
+    ctx.textBaseline = 'bottom';
+
+    const now    = performance.now();
+    const flashBPM = Math.round(simulatedBPM + Math.sin(now / 400) * 2);
+    const line1  = `SUBJ_${fi}_ID:${subjectId}`;
+    const line2  = `BPM:${flashBPM}  CONF:${(0.82 + Math.sin(now/700)*0.1).toFixed(2)}`;
+
+    ctx.fillText(line1, bx, by - lw * 9);
+    ctx.fillText(line2, bx, by - lw * 1);
+
+    // Scan line effect — thin horizontal line sweeping over face
+    const scanY = by + ((now * 0.04) % bh);
+    ctx.globalAlpha = 0.15;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth   = lw * 0.8;
+    ctx.beginPath();
+    ctx.moveTo(bx, scanY);
+    ctx.lineTo(bx + bw, scanY);
+    ctx.stroke();
+
+    ctx.restore();
+  });
+
+  ctx.restore();
+}
+
+// ── Audio Engine ──────────────────────────────────────────────────────────
+let AC = null;  // AudioContext — created on first user gesture (initLife)
+
+// Node refs
+let lifeGain, deathGain, masterGain;
+let heartOsc, heartGain;
+let noiseSource, noiseGainNode, noiseFilter;
+let glitchOsc, glitchGain;
+let droneOsc1, droneOsc2, droneGain;
+let droneFilter, droneReverb;
+let lifeFilter; // low-pass on the life layer (pulled down on release)
+
+function initAudio() {
+  if (AC) return;
+  AC = new (window.AudioContext || window.webkitAudioContext)();
+
+  masterGain = AC.createGain();
+  masterGain.gain.setValueAtTime(0.72, AC.currentTime);
+  masterGain.connect(AC.destination);
+
+  // ── LIFE layer (heartbeat + noise grain + glitch) ─────────────────────
+  lifeGain = AC.createGain();
+  lifeGain.gain.setValueAtTime(0, AC.currentTime);
+
+  // Low-pass on whole life layer — pulled down to "vacuum" on release
+  lifeFilter = AC.createBiquadFilter();
+  lifeFilter.type = 'lowpass';
+  lifeFilter.frequency.setValueAtTime(18000, AC.currentTime);
+  lifeFilter.Q.setValueAtTime(0.5, AC.currentTime);
+  lifeGain.connect(lifeFilter);
+  lifeFilter.connect(masterGain);
+
+  // Heart thump — sub oscillator pulsing at ~72 bpm
+  heartOsc  = AC.createOscillator();
+  heartGain = AC.createGain();
+  heartOsc.type = 'sine';
+  heartOsc.frequency.setValueAtTime(58, AC.currentTime);
+  heartGain.gain.setValueAtTime(0, AC.currentTime);
+  heartOsc.connect(heartGain);
+  heartGain.connect(lifeGain);
+  heartOsc.start();
+
+  // White noise grain (paper friction)
+  const bufSize = AC.sampleRate * 2;
+  const noiseBuf = AC.createBuffer(1, bufSize, AC.sampleRate);
+  const nd = noiseBuf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) nd[i] = Math.random() * 2 - 1;
+  noiseSource = AC.createBufferSource();
+  noiseSource.buffer = noiseBuf;
+  noiseSource.loop = true;
+  noiseGainNode = AC.createGain();
+  noiseGainNode.gain.setValueAtTime(0, AC.currentTime);
+  noiseFilter = AC.createBiquadFilter();
+  noiseFilter.type = 'bandpass';
+  noiseFilter.frequency.setValueAtTime(3200, AC.currentTime);
+  noiseFilter.Q.setValueAtTime(1.2, AC.currentTime);
+  noiseSource.connect(noiseFilter);
+  noiseFilter.connect(noiseGainNode);
+  noiseGainNode.connect(lifeGain);
+  noiseSource.start();
+
+  // Glitch oscillator — high freq unstable digital noise
+  glitchOsc  = AC.createOscillator();
+  glitchGain = AC.createGain();
+  glitchOsc.type = 'sawtooth';
+  glitchOsc.frequency.setValueAtTime(880, AC.currentTime);
+  glitchGain.gain.setValueAtTime(0, AC.currentTime);
+  glitchOsc.connect(glitchGain);
+  glitchGain.connect(lifeGain);
+  glitchOsc.start();
+
+  // ── DEATH layer (ambient drone) ───────────────────────────────────────
+  deathGain = AC.createGain();
+  deathGain.gain.setValueAtTime(0, AC.currentTime);
+
+  // Reverb (convolution with synthetic IR)
+  droneReverb = AC.createConvolver();
+  droneReverb.buffer = buildReverbIR(AC, 4.5, 2.8);
+
+  droneFilter = AC.createBiquadFilter();
+  droneFilter.type = 'lowpass';
+  droneFilter.frequency.setValueAtTime(600, AC.currentTime);
+  droneFilter.Q.setValueAtTime(0.4, AC.currentTime);
+
+  droneOsc1 = AC.createOscillator();
+  droneOsc2 = AC.createOscillator();
+  droneGain = AC.createGain();
+  droneOsc1.type = 'sine';
+  droneOsc2.type = 'sine';
+  droneOsc1.frequency.setValueAtTime(36, AC.currentTime);
+  droneOsc2.frequency.setValueAtTime(36.18, AC.currentTime); // slight detune → beating
+  droneGain.gain.setValueAtTime(0.55, AC.currentTime);
+  droneOsc1.connect(droneGain);
+  droneOsc2.connect(droneGain);
+  droneGain.connect(droneFilter);
+  droneFilter.connect(droneReverb);
+  droneReverb.connect(deathGain);
+  deathGain.connect(masterGain);
+  droneOsc1.start();
+  droneOsc2.start();
+}
+
+// Build a synthetic reverb impulse response
+function buildReverbIR(ac, duration, decay) {
+  const rate   = ac.sampleRate;
+  const length = Math.floor(rate * duration);
+  const ir     = ac.createBuffer(2, length, rate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    for (let i = 0; i < length; i++) {
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+    }
+  }
+  return ir;
+}
+
+// Heartbeat pulse scheduler
+let heartbeatInterval = null;
+let currentBPM = 72;
+
+function scheduleHeartbeat() {
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
+  const interval = 60000 / currentBPM;
+  heartbeatInterval = setInterval(() => {
+    if (appState !== S.ZOOMING_IN || !AC) return;
+    const now = AC.currentTime;
+    // Thump envelope: fast attack, short decay
+    heartGain.gain.cancelScheduledValues(now);
+    heartGain.gain.setValueAtTime(0, now);
+    heartGain.gain.linearRampToValueAtTime(0.9, now + 0.02);
+    heartGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+  }, interval);
+}
+
+// Glitch burst: random hi-freq spike
+let glitchInterval = null;
+function scheduleGlitch() {
+  if (glitchInterval) clearInterval(glitchInterval);
+  glitchInterval = setInterval(() => {
+    if (appState !== S.ZOOMING_IN || !AC) return;
+    const now = AC.currentTime;
+    const freq = 600 + Math.random() * 3400;
+    glitchOsc.frequency.setValueAtTime(freq, now);
+    glitchGain.gain.cancelScheduledValues(now);
+    glitchGain.gain.setValueAtTime(0, now);
+    glitchGain.gain.linearRampToValueAtTime(0.12 + Math.random() * 0.1, now + 0.005);
+    glitchGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04 + Math.random() * 0.08);
+  }, 120 + Math.random() * 180);
+}
+
+// ── Update audio every frame based on scale + appState ───────────────────
+function updateAudio() {
+  if (!AC) return;
+  const now = AC.currentTime;
+  const t   = 0.04; // ramp time for smooth param changes
+
+  if (appState === S.ZOOMING_IN) {
+    // scale drives frequency / intensity
+    const logS   = Math.log(Math.max(1, scale));           // 0 → ∞
+    const norm   = Math.min(1, logS / Math.log(200));      // 0..1
+    const invNorm = 1 - norm;
+
+    // Life layer fades in
+    lifeGain.gain.setTargetAtTime(0.85, now, t);
+
+    // Noise grain: bandpass sweeps up with zoom
+    noiseFilter.frequency.setTargetAtTime(800 + norm * 7000, now, t);
+    noiseGainNode.gain.setTargetAtTime(0.08 + norm * 0.18, now, t);
+
+    // Heart: BPM rises, pitch rises
+    const newBPM = 72 + norm * 88;  // 72 → 160 bpm
+    if (Math.abs(newBPM - currentBPM) > 4) {
+      currentBPM = newBPM;
+      scheduleHeartbeat();
+    }
+    heartOsc.frequency.setTargetAtTime(45 + norm * 55, now, t); // 45→100 Hz
+
+    // Glitch frequency density rises
+    if (!glitchInterval) scheduleGlitch();
+
+    // Life filter stays open (no vacuum yet)
+    lifeFilter.frequency.setTargetAtTime(18000, now, t * 2);
+
+    // Death layer stays silent
+    deathGain.gain.setTargetAtTime(0, now, t);
+
+  } else if (appState === S.ZOOMING_OUT) {
+    const logS  = Math.log(Math.max(0.01, scale));
+    const norm  = Math.max(0, Math.min(1, 1 + logS / Math.log(200))); // 1→0 as scale→0
+
+    // INSTANT vacuum: slam the life filter down
+    lifeFilter.frequency.setTargetAtTime(180, now, 0.06);
+    lifeGain.gain.setTargetAtTime(norm * 0.3, now, t);
+
+    // Kill heartbeat + glitch immediacy
+    heartGain.gain.setTargetAtTime(0, now, 0.08);
+    noiseGainNode.gain.setTargetAtTime(norm * 0.04, now, t);
+
+    // Death drone fades in then out with scale
+    deathGain.gain.setTargetAtTime(0.7 * norm, now, t * 1.5);
+
+    // Drone filter opens as death grows
+    droneFilter.frequency.setTargetAtTime(200 + norm * 400, now, t);
+
+  } else if (appState === S.DEAD || appState === S.READY || appState === S.FILLING) {
+    lifeGain.gain.setTargetAtTime(0, now, 0.2);
+    deathGain.gain.setTargetAtTime(0, now, 0.8);
+    heartGain.gain.setTargetAtTime(0, now, 0.1);
+  }
+}
+
+function stopAllAudio() {
+  if (!AC) return;
+  if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
+  if (glitchInterval)    { clearInterval(glitchInterval);    glitchInterval    = null; }
+  const now = AC.currentTime;
+  lifeGain.gain.setTargetAtTime(0, now, 0.15);
+  deathGain.gain.setTargetAtTime(0, now, 0.4);
+  heartGain.gain.setTargetAtTime(0, now, 0.08);
+}
+
+// ── Input handling ────────────────────────────────────────────────────────
+birthInput.addEventListener('input', () => {
+  let v = birthInput.value.replace(/[^0-9]/g, '');
+  if (v.length > 4) v = v.slice(0,4) + '-' + v.slice(4);
+  if (v.length > 7) v = v.slice(0,7) + '-' + v.slice(7);
+  birthInput.value = v.slice(0, 10);
+  errorMsg.textContent = '';
+});
+birthInput.addEventListener('keydown', e => { if (e.key === 'Enter') initLife(); });
+initBtn.addEventListener('click', initLife);
+
+function initLife() {
+  const val = birthInput.value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) { errorMsg.textContent = '× Invalid format — use YYYY-MM-DD'; return; }
+  const birth = new Date(val + 'T00:00:00');
+  if (isNaN(birth.getTime()))  { errorMsg.textContent = '× Invalid date'; return; }
+  if (birth >= TODAY)           { errorMsg.textContent = '× Date must be in the past'; return; }
+
+  const weeks = Math.floor((TODAY - birth) / (7 * 24 * 3600 * 1000));
+  if (weeks > COLS * ROWS)      { errorMsg.textContent = '× Exceeds 90 years — beyond the grid'; return; }
+
+  birthDateStr  = val;
+  lifeWeeks     = weeks;
+  currentWeek   = Math.max(0, weeks - 1);
+  currentCol    = currentWeek % COLS;
+  currentRow    = Math.floor(currentWeek / COLS);
+  ageStr        = ((TODAY - birth) / (365.25 * 24 * 3600 * 1000)).toFixed(1);
+  totalWeeksStr = weeks.toLocaleString();
+
+  weeksLabel.textContent = `— ${totalWeeksStr} weeks lived —`;
+  statusBar.innerHTML    = `Age: ${ageStr} years &nbsp;|&nbsp; Born: ${birthDateStr} &nbsp;|&nbsp; Today: ${TODAY_STR}`;
+
+  pivotX = originX + currentCol * (CELL + GAP) + CELL / 2;
+  pivotY = originY + currentRow * (CELL + GAP) + CELL / 2;
+
+  inputScreen.classList.add('hidden');
+  setTimeout(() => { inputScreen.style.display = 'none'; }, 900);
+
+  initAudio(); // AudioContext started on user gesture ✓
+  initCamera(); // Request webcam (non-blocking)
+
+  appState   = S.FILLING;
+  filledUpTo = -1;
+  fillTarget = currentWeek;
+
+  requestAnimationFrame(tick);
+}
+
+// ── Texture helpers ───────────────────────────────────────────────────────
+function drawHalftone(cx, cy, radius, density, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#1a1a1a';
+  const spacing = 3.5 / density;
+  const r2 = radius * radius;
+  for (let dx = -radius; dx < radius; dx += spacing) {
+    for (let dy = -radius; dy < radius; dy += spacing) {
+      if (dx*dx + dy*dy > r2) continue;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      const t = 1 - dist / radius;
+      const dotR = spacing * 0.4 * (0.3 + t * 0.7) * (0.7 + pseudoRand(dx|0, dy|0, 5) * 0.6);
+      ctx.beginPath();
+      ctx.arc(cx + dx, cy + dy, dotR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawTypoFragment(x, y, alpha) {
+  if (alpha < 0.05) return;
+  const words = ['MEMENTO','MORI','WEEK','YEAR','TIME','NOW','END','LIFE','VOID','52','90','1','—'];
+  ctx.save();
+  ctx.globalAlpha = alpha * 0.18;
+  ctx.fillStyle = '#111';
+  for (let i = 0; i < 6; i++) {
+    const word = words[Math.floor(pseudoRand(i, noiseOff|0, 3) * words.length)];
+    const fx = x + (pseudoRand(i,0,1) - 0.5) * 300 * alpha;
+    const fy = y + (pseudoRand(i,0,2) - 0.5) * 300 * alpha;
+    ctx.font = `${8 + pseudoRand(i,1,4) * 28}px 'Courier New', monospace`;
+    ctx.fillText(word, fx, fy);
+  }
+  ctx.restore();
+}
+
+function drawPaperFibers(cx, cy, radius, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha * 0.07;
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 0.3;
+  for (let i = 0; i < 40; i++) {
+    const angle = pseudoRand(i, 7, noiseOff * 0.01) * Math.PI;
+    const len = 20 + pseudoRand(i, 8, 0) * 80;
+    const px  = cx + (pseudoRand(i, 9, 0) - 0.5) * radius * 2;
+    const py  = cy + (pseudoRand(i,10, 0) - 0.5) * radius * 2;
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(px + Math.cos(angle) * len, py + Math.sin(angle) * len);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawMoire() {
+  if (scale > 8) return;
+  const fo = Math.max(0, 1 - (scale - 1) / 4);
+  if (fo < 0.01) return;
+  const t = noiseOff * 0.3;
+  ctx.save();
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 0.4;
+  ctx.globalAlpha = 0.035 * fo;
+  for (let x = -W; x < W*2; x += 5) {
+    ctx.beginPath();
+    ctx.moveTo(x + Math.sin(t*0.5)*2, 0);
+    ctx.lineTo(x + 100 + Math.cos(t*0.3)*3, H);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 0.02 * fo;
+  for (let x = -W; x < W*2; x += 7) {
+    ctx.beginPath();
+    ctx.moveTo(x + Math.sin(t*0.7+1)*1.5, 0);
+    ctx.lineTo(x + 80 + Math.cos(t*0.2)*2, H);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ── Grid draw ─────────────────────────────────────────────────────────────
+function drawGrid(sc, px, py, visibleFilled) {
+  // Update aura fade-in
+  if (auraRevealed && auraAlpha < 1) {
+    auraAlpha = Math.min(1, (performance.now() - auraRevealStart) / AURA_REVEAL_DURATION);
+  }
+
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.scale(sc, sc);
+  ctx.translate(-px, -py);
+
+  const r = CELL / 2;
+
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const idx = row * COLS + col;
+      const cx  = originX + col * (CELL + GAP) + r;
+      const cy  = originY + row * (CELL + GAP) + r;
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+
+      if (idx === currentWeek) {
+        // Current week: blink red/grey (aura tints the grey state)
+        if (blinkOn) {
+          ctx.fillStyle = auraColor && auraAlpha > 0
+            ? `hsla(${auraColor.h},${auraColor.s}%,${auraColor.l}%,${0.7 + auraAlpha * 0.25})`
+            : 'rgba(192,57,43,0.85)';
+        } else {
+          ctx.fillStyle = 'rgba(100,100,100,0.5)';
+        }
+        ctx.fill();
+      } else if (idx < visibleFilled) {
+        // Past: webcam shows through — subtle ring + optional aura glow ring
+        if (auraColor && auraAlpha > 0) {
+          ctx.strokeStyle = `hsla(${auraColor.h},${auraColor.s}%,${auraColor.l}%,${auraAlpha * 0.35})`;
+          ctx.lineWidth = 0.6;
+        } else {
+          ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+          ctx.lineWidth = 0.3;
+        }
+        ctx.stroke();
+      } else {
+        // Future: opaque bg + outline
+        ctx.fillStyle = '#f5f5f0';
+        ctx.fill();
+        ctx.strokeStyle = '#c5c5bf';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Aura colour wash over the entire past-cells region
+  if (auraColor && auraAlpha > 0) {
+    ctx.save();
+    // Clip to past + current circles
+    ctx.beginPath();
+    for (let row = 0; row < ROWS; row++) {
+      for (let col = 0; col < COLS; col++) {
+        const idx = row * COLS + col;
+        if (idx >= visibleFilled && idx !== currentWeek) continue;
+        const cx = originX + col * (CELL + GAP) + r;
+        const cy = originY + row * (CELL + GAP) + r;
+        ctx.moveTo(cx + r, cy);
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      }
+    }
+    ctx.clip();
+
+    // Soft radial gradient wash centred on the grid
+    const gcx = originX + TOTAL_W / 2;
+    const gcy = originY + TOTAL_H / 2;
+    const grad = ctx.createRadialGradient(gcx, gcy, 0, gcx, gcy, Math.max(TOTAL_W, TOTAL_H) * 0.7);
+    const { h, s, l } = auraColor;
+    grad.addColorStop(0, `hsla(${h},${s}%,${l}%,${auraAlpha * 0.38})`);
+    grad.addColorStop(0.6, `hsla(${h},${s}%,${l - 10}%,${auraAlpha * 0.22})`);
+    grad.addColorStop(1,   `hsla(${h},${s}%,${l - 20}%,${auraAlpha * 0.08})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(originX, originY, TOTAL_W, TOTAL_H);
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+// ── Render ────────────────────────────────────────────────────────────────
+function render(visibleFilled) {
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#f5f5f0';
+  ctx.fillRect(0, 0, W, H);
+
+  drawMoire();
+
+  const gridFade = Math.max(0, 1 - (scale - 3) / 4);
+
+  // 1. Webcam masked to past cells (draws BEFORE grid so grid overlays on top)
+  if (gridFade > 0) {
+    ctx.save();
+    ctx.globalAlpha = gridFade;
+    drawWebcamMasked(scale, pivotX, pivotY, visibleFilled);
+    ctx.restore();
+  }
+
+  // 2. Grid structure (future cell outlines + current cell blink, past cells transparent)
+  if (gridFade > 0) {
+    ctx.save();
+    ctx.globalAlpha = gridFade;
+    drawGrid(scale, pivotX, pivotY, visibleFilled);
+    ctx.restore();
+  }
+
+  // 3. Face tracking boxes (on top of webcam, inside zoom transform)
+  if (gridFade > 0) {
+    ctx.save();
+    ctx.globalAlpha = gridFade;
+    drawFaceTracking(scale, pivotX, pivotY, visibleFilled);
+    ctx.restore();
+  }
+
+  // 4. Deep zoom textures (zoom-in paper/halftone/typo layer)
+  if (scale > 2) {
+    const zoomT = Math.min(1, (scale - 2) / 10);
+    drawPaperFibers(W/2, H/2, Math.min(W,H)*0.7, zoomT);
+    drawHalftone(W/2, H/2, Math.min(W,H)*0.55, Math.min(scale/8,1), zoomT*0.9);
+    drawTypoFragment(W/2, H/2, zoomT);
+    const vg = ctx.createRadialGradient(W/2,H/2,0, W/2,H/2, Math.max(W,H)*0.6);
+    vg.addColorStop(0, 'rgba(245,245,240,0)');
+    vg.addColorStop(1, `rgba(245,245,240,${0.5*zoomT})`);
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // 5. Film grain
+  if (scale < 2 || appState === S.ZOOMING_OUT) {
+    const ga = 0.022 * (appState === S.ZOOMING_OUT ? Math.min(1, scale) : 1);
+    ctx.save();
+    ctx.globalAlpha = ga;
+    for (let i = 0; i < 700; i++) {
+      ctx.fillStyle = `rgba(0,0,0,${0.3 + pseudoRand(i, noiseOff|0, 3) * 0.7})`;
+      ctx.fillRect(
+        pseudoRand(i, noiseOff|0, 0) * W,
+        pseudoRand(i, noiseOff|0, 1) * H,
+        pseudoRand(i, noiseOff|0, 2) * 1.5,
+        pseudoRand(i, noiseOff|0, 2) * 1.5
+      );
+    }
+    ctx.restore();
+  }
+}
+
+// ── Tick ──────────────────────────────────────────────────────────────────
+let lastTime = 0;
+
+function tick(t) {
+  const dt = Math.min((t - lastTime) / 1000, 0.05);
+  lastTime  = t;
+  noiseOff += dt * 12;
+
+  blinkTimer += dt;
+  if (blinkTimer > 0.55) { blinkOn = !blinkOn; blinkTimer = 0; }
+
+  if (appState === S.FILLING) {
+    const remaining = fillTarget - filledUpTo;
+    if (remaining <= 0) {
+      filledUpTo = fillTarget;
+      appState   = S.READY;
+      onGridReady();
+    } else {
+      const speed = Math.max(4, 200 * Math.sqrt(remaining / Math.max(1, fillTarget)));
+      filledUpTo  = Math.min(fillTarget, filledUpTo + speed * dt);
+    }
+    render(Math.floor(filledUpTo) + 1);
+    requestAnimationFrame(tick);
+
+  } else if (appState === S.READY) {
+    render(currentWeek + 1);
+    requestAnimationFrame(tick);
+
+  } else if (appState === S.ZOOMING_IN) {
+    const holdSec = (performance.now() - holdStartTime) / 1000;
+    zoomVelocity += (0.6 + holdSec * 1.1) * dt;
+    zoomVelocity  = Math.min(zoomVelocity, 7);
+    scale        *= Math.pow(Math.E, zoomVelocity * dt);
+    updateAudio();
+    render(currentWeek + 1);
+    requestAnimationFrame(tick);
+
+  } else if (appState === S.ZOOMING_OUT) {
+    scale *= Math.pow(0.42, dt);
+    updateAudio();
+    if (scale < 0.002) {
+      appState = S.DEAD;
+      showDeath();
+    } else {
+      render(currentWeek + 1);
+      requestAnimationFrame(tick);
+    }
+  }
+}
+
+// ── Grid ready ────────────────────────────────────────────────────────────
+function onGridReady() {
+  statusBar.style.opacity = '1';
+  labelEl.textContent     = `Life is a microscopic magnification  ·  ${totalWeeksStr} weeks`;
+  labelEl.style.opacity   = '1';
+  setTimeout(() => { hintEl.style.opacity = '1'; }, 800);
+
+  canvas.addEventListener('mousedown', onPress);
+  document.addEventListener('mouseup', onRelease);
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); onPress(); }, { passive: false });
+  document.addEventListener('touchend', onRelease);
+}
+
+// ── Hold interaction ──────────────────────────────────────────────────────
+function onPress() {
+  if (appState === S.DEAD || appState === S.FILLING) return;
+  isHolding     = true;
+  holdStartTime = performance.now();
+  zoomVelocity  = appState === S.ZOOMING_OUT ? Math.max(zoomVelocity * 0.2, 0.3) : 0.3;
+  appState      = S.ZOOMING_IN;
+  hintEl.style.opacity  = '0';
+  labelEl.style.opacity = '0';
+  // Start rhythmic audio
+  scheduleHeartbeat();
+  scheduleGlitch();
+  requestAnimationFrame(tick);
+}
+
+function onRelease() {
+  if (!isHolding || appState === S.DEAD) return;
+  isHolding = false;
+  if (appState === S.ZOOMING_IN || appState === S.READY) {
+    appState = S.ZOOMING_OUT;
+    // Kill rhythmic pulses immediately
+    if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
+    if (glitchInterval)    { clearInterval(glitchInterval);    glitchInterval    = null; }
+    requestAnimationFrame(tick);
+  }
+}
+
+// ── Death ─────────────────────────────────────────────────────────────────
+function showDeath() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#f5f5f0';
+  ctx.fillRect(0, 0, W, H);
+  statusBar.style.opacity = '0';
+  stopAllAudio();
+  setTimeout(() => {
+    deathText.style.transition = 'opacity 2.5s cubic-bezier(0.4,0,0.2,1)';
+    deathText.style.opacity    = '1';
+  }, 400);
+  setTimeout(() => {
+    resetBtn.style.transition    = 'opacity 1.5s ease';
+    resetBtn.style.opacity       = '1';
+    resetBtn.style.pointerEvents = 'all';
+  }, 3200);
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────
+resetBtn.addEventListener('click', () => {
+  canvas.removeEventListener('mousedown', onPress);
+  document.removeEventListener('mouseup', onRelease);
+
+  scale = 1; zoomVelocity = 0; isHolding = false;
+  filledUpTo = -1; appState = S.INPUT;
+  blinkOn = true; blinkTimer = 0;
+
+  stopAllAudio();
+  stopCamera();
+
+  detectedFaces = [];
+  subjectId = Math.floor(Math.random() * 89999 + 10000);
+  auraColor = null; auraAlpha = 0; auraRevealed = false;
+  const auraEl = document.getElementById('aura-label');
+  if (auraEl) { auraEl.style.opacity = '0'; }
+
+  deathText.style.transition   = 'opacity 0.5s ease';
+  deathText.style.opacity      = '0';
+  resetBtn.style.opacity       = '0';
+  resetBtn.style.pointerEvents = 'none';
+  statusBar.style.opacity      = '0';
+  labelEl.style.opacity        = '0';
+  hintEl.style.opacity         = '0';
+
+  ctx.clearRect(0, 0, W, H);
+
+  inputScreen.style.display = 'flex';
+  requestAnimationFrame(() => inputScreen.classList.remove('hidden'));
+  birthInput.value     = '';
+  errorMsg.textContent = '';
+});
+</script>
+</body>
+</html>
