@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>90 Years — Memento Mori</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #f5f5f0;
+    --fg: #0a0a0a;
+    --accent: #c0392b;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    user-select: none;
+  }
+
+  /* ── INPUT SCREEN ─────────────────────────────────── */
+  #input-screen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    background: var(--bg);
+    transition: opacity 0.8s ease;
+  }
+  #input-screen.hidden { opacity: 0; pointer-events: none; }
+
+  .input-title {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    letter-spacing: 0.5em;
+    text-transform: uppercase;
+    color: var(--fg);
+    margin-bottom: 8px;
+  }
+  .input-subtitle {
+    font-family: 'Courier New', monospace;
+    font-size: 8px;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: #aaa;
+    margin-bottom: 40px;
+  }
+  #birth-input {
+    font-family: 'Courier New', monospace;
+    font-size: 24px;
+    letter-spacing: 0.1em;
+    color: var(--fg);
+    background: transparent;
+    border: 2.5px solid var(--fg);
+    padding: 14px 22px;
+    width: 270px;
+    text-align: center;
+    outline: none;
+    -webkit-appearance: none;
+  }
+  #birth-input::placeholder { color: #ccc; }
+  #birth-input:focus { box-shadow: 5px 5px 0 var(--fg); }
+
+  #error-msg {
+    font-family: 'Courier New', monospace;
+    font-size: 8px;
+    letter-spacing: 0.28em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-top: 10px;
+    height: 14px;
+  }
+  #init-btn {
+    margin-top: 28px;
+    font-family: 'Courier New', monospace;
+    font-size: 9px;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--bg);
+    background: var(--fg);
+    border: 2.5px solid var(--fg);
+    padding: 13px 36px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  #init-btn:hover { background: var(--bg); color: var(--fg); }
+
+  .input-footer {
+    position: absolute;
+    bottom: 26px;
+    font-family: 'Courier New', monospace;
+    font-size: 7px;
+    letter-spacing: 0.35em;
+    color: #ccc;
+    text-transform: uppercase;
+  }
+
+
+
+  /* ── CANVAS LAYER ─────────────────────────────────── */
+  #canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: block;
+    cursor: crosshair;
+  }
+
+  /* ── OVERLAYS ─────────────────────────────────────── */
+  #status-bar {
+    position: fixed;
+    top: 18px; left: 22px;
+    font-family: 'Courier New', monospace;
+    font-size: 8px;
+    letter-spacing: 0.22em;
+    color: #999;
+    text-transform: uppercase;
+    z-index: 10;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1s ease;
+    line-height: 2;
+  }
+  #label { display: none; }
+  #hint  { display: none; }
+  #death-text {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    letter-spacing: 0.35em;
+    color: var(--fg);
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 20;
+    line-height: 2.6;
+  }
+  #reset-btn {
+    position: fixed;
+    bottom: 40px; left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Courier New', monospace;
+    font-size: 8px;
+    letter-spacing: 0.3em;
+    color: #aaa;
+    text-transform: uppercase;
+    background: transparent;
+    border: 1px solid #ccc;
+    padding: 9px 22px;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 20;
+    transition: color 0.3s, border-color 0.3s;
+  }
+  #reset-btn:hover { color: var(--fg); border-color: var(--fg); }
+</style>
+</head>
+<body>
+
+<div id="input-screen">
+  <div class="input-title">Memento Mori</div>
+  <div class="input-subtitle">Enter your birth date (YYYY-MM-DD)</div>
+  <input id="birth-input" type="text" placeholder="1990-01-01" maxlength="10" autocomplete="off" spellcheck="false">
+  <div id="error-msg"></div>
+  <button id="init-btn">Initialize Life</button>
+  <div class="input-footer">Life is a microscopic magnification &nbsp;·&nbsp; 52 × 90 weeks</div>
+</div>
+
+<canvas id="canvas"></canvas>
+<video id="webcam" autoplay playsinline muted style="display:none;"></video>
+<div id="status-bar"></div>
+<div id="label"></div>
+<div id="hint">hold to magnify &nbsp;·&nbsp; release to disappear</div>
+<div id="death-text">
+  Death is a macroscopic disappearance.<br>
+  <span id="weeks-label" style="font-size:8px;letter-spacing:0.5em;color:#aaa">— weeks —</span>
+</div>
+
+<button id="reset-btn">↺ &nbsp; Begin Again</button>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+// ── Supabase ──────────────────────────────────────────────────────────────
+const SUPA_URL = 'https://lqhmcxmnlkrawmfsactc.supabase.co';
+const SUPA_KEY = 'sb_publishable_YPJMYd1pQi70bP-whcI0uA_i-hZOLyj';
+const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ── DOM ───────────────────────────────────────────────────────────────────
+const inputScreen = document.getElementById('input-screen');
+const birthInput  = document.getElementById('birth-input');
+const initBtn     = document.getElementById('init-btn');
+const errorMsg    = document.getElementById('error-msg');
+const canvas      = document.getElementById('canvas');
+const ctx         = canvas.getContext('2d');
+const statusBar   = document.getElementById('status-bar');
+const labelEl     = document.getElementById('label');
+const hintEl      = document.getElementById('hint');
+const deathText   = document.getElementById('death-text');
+const weeksLabel  = document.getElementById('weeks-label');
+const resetBtn    = document.getElementById('reset-btn');
+let captureReady = false;
+let captureHoverActive = false;
+let captureDismissed = false; // once user clicks ×, never show again until reset
+let pressStartTime = 0;
+const LONG_PRESS_MS = 220;
+
+// ── Viewfinder drawn on a fullscreen overlay canvas ───────────────────────
+function getViewfinderCanvas() {
+  let vf = document.getElementById('viewfinder-canvas');
+  if (!vf) {
+    vf = document.createElement('canvas');
+    vf.id = 'viewfinder-canvas';
+    vf.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:16;';
+    document.body.appendChild(vf);
+    vf.width  = window.innerWidth;
+    vf.height = window.innerHeight;
+  }
+  return vf;
+}
+
+// Dismiss × button — tiny, top-right corner of grid
+let dismissBtn = null;
+function showDismissBtn() {
+  if (!dismissBtn) {
+    dismissBtn = document.createElement('div');
+    dismissBtn.style.cssText = `
+      position:fixed;
+      font-family:'Courier New',monospace;
+      font-size:22px;
+      color:rgba(120,120,120,0.7);
+      cursor:pointer;
+      z-index:17;
+      line-height:1;
+      padding:6px 8px;
+      letter-spacing:0.1em;
+      transition:color 0.2s, opacity 0.4s;
+      user-select:none;
+    `;
+    dismissBtn.textContent = '×';
+    dismissBtn.title = 'Disable capture';
+    dismissBtn.addEventListener('mouseenter', () => { dismissBtn.style.color = 'rgba(10,10,10,0.9)'; });
+    dismissBtn.addEventListener('mouseleave', () => { dismissBtn.style.color = 'rgba(120,120,120,0.7)'; });
+    dismissBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      captureDismissed = true;
+      captureHoverActive = false;
+      clearViewfinder();
+      dismissBtn.style.opacity = '0';
+      dismissBtn.style.pointerEvents = 'none';
+    });
+    document.body.appendChild(dismissBtn);
+  }
+  positionDismissBtn();
+  // Tint × with aura colour if available
+  const baseColor = auraColor
+    ? `hsla(${auraColor.h},${auraColor.s}%,${Math.max(25,auraColor.l-10)}%,0.65)`
+    : 'rgba(120,120,120,0.7)';
+  dismissBtn.style.color = baseColor;
+  dismissBtn.style.opacity = '1';
+  dismissBtn.style.pointerEvents = 'all';
+}
+
+function positionDismissBtn() {
+  if (!dismissBtn) return;
+  dismissBtn.style.left = (originX + TOTAL_W + 4) + 'px';
+  dismissBtn.style.top  = (originY - 20) + 'px';
+}
+
+function hideDismissBtn() {
+  // No-op — dismiss button stays visible until user clicks it
+}
+
+function positionCaptureOverlay() {
+  const vf = document.getElementById('viewfinder-canvas');
+  if (vf) { vf.width = window.innerWidth; vf.height = window.innerHeight; }
+  positionDismissBtn();
+}
+
+function isOverGrid(mx, my) {
+  return mx >= originX && mx <= originX + TOTAL_W &&
+         my >= originY && my <= originY + TOTAL_H;
+}
+
+function drawViewfinder() {
+  if (captureDismissed) return;
+  const vf = getViewfinderCanvas();
+  const vc = vf.getContext('2d');
+  vc.clearRect(0, 0, vf.width, vf.height);
+  const x = originX, y = originY, w = TOTAL_W, h = TOTAL_H;
+  const cl = 20;
+
+  // Use aura colour if available, otherwise fall back to dark
+  const auraStr = auraColor
+    ? `hsl(${auraColor.h},${auraColor.s}%,${Math.max(25, auraColor.l - 10)}%)`
+    : 'rgba(15,15,15,1)';
+  const auraFaint = auraColor
+    ? `hsla(${auraColor.h},${auraColor.s}%,${auraColor.l}%,0.45)`
+    : 'rgba(15,15,15,0.5)';
+
+  // Full perimeter thin border in aura colour
+  vc.strokeStyle = auraFaint;
+  vc.lineWidth = 0.8;
+  vc.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+
+  // Corner brackets — aura colour, slightly thicker
+  vc.strokeStyle = auraStr;
+  vc.lineWidth = 1.8;
+  vc.lineCap = 'square';
+  [[x,y,cl,0,0,cl],[x+w,y,-cl,0,0,cl],[x,y+h,cl,0,0,-cl],[x+w,y+h,-cl,0,0,-cl]]
+    .forEach(([ox,oy,hx,hy,vx,vy]) => {
+      vc.beginPath(); vc.moveTo(ox,oy); vc.lineTo(ox+hx,oy+hy); vc.stroke();
+      vc.beginPath(); vc.moveTo(ox,oy); vc.lineTo(ox+vx,oy+vy); vc.stroke();
+    });
+}
+
+function clearViewfinder() {
+  const vf = document.getElementById('viewfinder-canvas');
+  if (vf) vf.getContext('2d').clearRect(0, 0, vf.width, vf.height);
+  hideDismissBtn();
+}
+
+function flashViewfinder(cb) {
+  const vf = getViewfinderCanvas();
+  const vc = vf.getContext('2d');
+  vc.clearRect(0, 0, vf.width, vf.height);
+  vc.fillStyle = 'rgba(255,255,255,0.55)';
+  vc.fillRect(originX, originY, TOTAL_W, TOTAL_H);
+  setTimeout(() => {
+    clearViewfinder();
+    if (captureHoverActive && !captureDismissed) drawViewfinder();
+    if (cb) cb();
+  }, 100);
+}
+
+// Hover detection via mousemove on canvas
+canvas.addEventListener('mousemove', (e) => {
+  if (!captureReady || captureDismissed) return;
+  const over = isOverGrid(e.clientX, e.clientY);
+  if (over && !captureHoverActive) {
+    captureHoverActive = true;
+    drawViewfinder();
+  } else if (!over && captureHoverActive) {
+    captureHoverActive = false;
+    clearViewfinder();
+  }
+});
+
+canvas.addEventListener('mouseleave', () => {
+  captureHoverActive = false;
+  clearViewfinder();
+});
+
+// ── Grid constants ────────────────────────────────────────────────────────
+const COLS    = 52;
+const ROWS    = 90;
+const CELL    = 10;
+const GAP     = 1;
+const TOTAL_W = COLS * (CELL + GAP) - GAP;
+const TOTAL_H = ROWS * (CELL + GAP) - GAP;
+
+const TODAY     = new Date();
+const TODAY_STR = TODAY.toISOString().slice(0, 10);
+
+// ── Life data ─────────────────────────────────────────────────────────────
+let lifeWeeks     = 0;
+let currentWeek   = 0;
+let currentCol    = 0;
+let currentRow    = 0;
+let birthDateStr  = '';
+let ageStr        = '';
+let totalWeeksStr = '';
+
+// ── App state machine ─────────────────────────────────────────────────────
+const S = { INPUT:'INPUT', FILLING:'FILLING', READY:'READY', ZOOMING_IN:'ZI', ZOOMING_OUT:'ZO', DEAD:'DEAD' };
+let appState = S.INPUT;
+
+// ── Fill animation ────────────────────────────────────────────────────────
+let filledUpTo = -1;
+let fillTarget  = 0;
+
+// ── Zoom ──────────────────────────────────────────────────────────────────
+let scale        = 1;
+let zoomVelocity = 0;
+let isHolding    = false;
+let holdStartTime = 0;
+
+// ── Canvas layout ─────────────────────────────────────────────────────────
+let W, H, originX, originY, pivotX, pivotY;
+
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  originX = (W - TOTAL_W) / 2;
+  originY = (H - TOTAL_H) / 2;
+  if (currentWeek >= 0) {
+    pivotX = originX + currentCol * (CELL + GAP) + CELL / 2;
+    pivotY = originY + currentRow * (CELL + GAP) + CELL / 2;
+  }
+  // Reposition capture button below grid
+  positionCaptureOverlay();
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── Pseudo-random ─────────────────────────────────────────────────────────
+function pseudoRand(x, y, seed) {
+  const n = Math.sin(x * 127.1 + y * 311.7 + seed * 74.3) * 43758.5453;
+  return n - Math.floor(n);
+}
+
+let noiseOff   = 0;
+let blinkTimer = 0;
+let blinkOn    = true;
+
+// ── Webcam & Face Detection ───────────────────────────────────────────────
+const videoEl = document.getElementById('webcam');
+let camStream     = null;
+let faceDetector  = null;
+let detectedFaces = [];
+let faceDetecting = false;
+let subjectId     = Math.floor(Math.random() * 89999 + 10000);
+let simulatedBPM  = 68 + Math.floor(Math.random() * 24);
+let bpmDrift      = 0;
+let camReady      = false;
+let camError      = false;
+
+// ── Aura colour system ────────────────────────────────────────────────────
+const AURA_PALETTE = [
+  { name: 'Violet Pulse',    h: 272, s: 72, l: 58 },
+  { name: 'Rose Quartz',     h: 340, s: 65, l: 68 },
+  { name: 'Sage Drift',      h: 152, s: 42, l: 52 },
+  { name: 'Amber Oracle',    h: 38,  s: 88, l: 58 },
+  { name: 'Cobalt Ether',    h: 220, s: 78, l: 56 },
+  { name: 'Crimson Thread',  h: 358, s: 70, l: 52 },
+  { name: 'Aqua Membrane',   h: 185, s: 60, l: 50 },
+  { name: 'Gold Resonance',  h: 47,  s: 90, l: 54 },
+  { name: 'Lilac Static',    h: 290, s: 50, l: 66 },
+  { name: 'Obsidian Breath', h: 240, s: 15, l: 28 },
+  { name: 'Phosphor Green',  h: 120, s: 80, l: 44 },
+  { name: 'Dusk Coral',      h: 15,  s: 75, l: 62 },
+  { name: 'Glacial Cyan',    h: 196, s: 85, l: 60 },
+  { name: 'Ash Frequency',   h: 210, s: 12, l: 52 },
+  { name: 'Mauve Signal',    h: 310, s: 38, l: 60 },
+  { name: 'Solar Flare',     h: 28,  s: 95, l: 52 },
+  { name: 'Deep Indigo',     h: 248, s: 62, l: 38 },
+  { name: 'Peach Noise',     h: 22,  s: 88, l: 74 },
+  { name: 'Moss Current',    h: 88,  s: 45, l: 40 },
+  { name: 'Silver Haze',     h: 200, s: 18, l: 72 },
+];
+
+let auraColor    = null;
+let auraAlpha    = 0;
+let auraRevealed = false;
+let auraRevealStart = 0;
+const AURA_REVEAL_DURATION = 3200;
+
+function pickAura() {
+  setTimeout(() => {
+    auraColor = AURA_PALETTE[Math.floor(Math.random() * AURA_PALETTE.length)];
+    auraRevealed = true;
+    auraRevealStart = performance.now();
+    showAuraLabel();
+  }, 2000);
+}
+
+function showAuraLabel() {
+  let el = document.getElementById('aura-label');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'aura-label';
+    el.style.cssText = `
+      position:fixed; top:18px; right:22px;
+      font-family:'Courier New',monospace;
+      font-size:8px; letter-spacing:0.28em;
+      text-transform:uppercase; z-index:10;
+      pointer-events:none; opacity:0;
+      transition:opacity 2s ease;
+      line-height:2;
+    `;
+    document.body.appendChild(el);
+  }
+  const { name, h, s, l } = auraColor;
+  el.style.color = `hsl(${h},${s}%,${Math.max(30, l - 20)}%)`;
+  el.innerHTML   = `Aura Detected<br><span style="letter-spacing:0.4em;font-size:10px;color:hsl(${h},${s}%,${l}%)">${name}</span>`;
+  requestAnimationFrame(() => { el.style.opacity = '1'; });
+}
+
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))));
+  };
+  return `#${[f(0),f(8),f(4)].map(v => v.toString(16).padStart(2,'0')).join('')}`;
+}
+
+async function initCamera() {
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false
+    });
+    videoEl.srcObject = camStream;
+    await new Promise(res => { videoEl.onloadedmetadata = res; });
+    await videoEl.play();
+    camReady = true;
+    pickAura();
+    if ('FaceDetector' in window) {
+      faceDetector = new FaceDetector({ fastMode: true, maxDetectedFaces: 3 });
+    }
+    detectFaces();
+  } catch (e) {
+    camError = true;
+    pickAura(); // still pick aura even without cam
+    console.warn('Camera unavailable:', e.message);
+  }
+}
+
+async function detectFaces() {
+  if (!camReady || !faceDetector || faceDetecting) return;
+  faceDetecting = true;
+  try { detectedFaces = await faceDetector.detect(videoEl); }
+  catch (_) { detectedFaces = []; }
+  faceDetecting = false;
+  bpmDrift += (Math.random() - 0.5) * 0.4;
+  bpmDrift   = Math.max(-8, Math.min(8, bpmDrift));
+  simulatedBPM = Math.round(Math.max(52, Math.min(110, simulatedBPM + bpmDrift * 0.1)));
+  setTimeout(detectFaces, 125);
+}
+
+function stopCamera() {
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  camReady = false;
+  detectedFaces = [];
+}
+
+// ── Webcam masked draw ────────────────────────────────────────────────────
+function drawWebcamMasked(sc, px, py, visibleFilled) {
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.scale(sc, sc);
+  ctx.translate(-px, -py);
+
+  const r = CELL / 2;
+  ctx.beginPath();
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const idx = row * COLS + col;
+      if (idx >= visibleFilled && idx !== currentWeek) continue;
+      const cx = originX + col * (CELL + GAP) + r;
+      const cy = originY + row * (CELL + GAP) + r;
+      ctx.moveTo(cx + r, cy);
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    }
+  }
+  ctx.clip();
+
+  const gridLeft = originX, gridTop = originY;
+  const gridW = TOTAL_W, gridH = TOTAL_H;
+
+  if (camReady && videoEl.readyState >= 2) {
+    ctx.save();
+    ctx.translate(originX + TOTAL_W, originY);
+    ctx.scale(-1, 1);
+    ctx.drawImage(videoEl, 0, 0, gridW, gridH);
+    ctx.restore();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(gridLeft, gridTop, gridW, gridH);
+  } else {
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(gridLeft, gridTop, gridW, gridH);
+  }
+
+  ctx.restore();
+}
+
+// ── Face tracking draw ────────────────────────────────────────────────────
+function drawFaceTracking(sc, px, py) {
+  if (!camReady || detectedFaces.length === 0) return;
+  const vw = videoEl.videoWidth  || 1;
+  const vh = videoEl.videoHeight || 1;
+
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.scale(sc, sc);
+  ctx.translate(-px, -py);
+
+  detectedFaces.forEach((face, fi) => {
+    const fb = face.boundingBox;
+    const scaleX = TOTAL_W / vw, scaleY = TOTAL_H / vh;
+    const fx = originX + (vw - fb.x - fb.width) * scaleX;
+    const fy = originY + fb.y * scaleY;
+    const fw = fb.width * scaleX, fh = fb.height * scaleY;
+    const pad = fw * 0.12;
+    const bx = fx - pad, by = fy - pad, bw = fw + pad*2, bh = fh + pad*2;
+    const cl = Math.min(bw, bh) * 0.18;
+    const lw = 1 / sc;
+
+    ctx.save();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = lw * 1.2;
+    ctx.globalAlpha = 0.88;
+
+    [[bx,bx+cl,by,by],[bx+bw,bx+bw-cl,by,by],[bx,bx+cl,by+bh,by+bh],[bx+bw,bx+bw-cl,by+bh,by+bh]].forEach(([x1,x2,y1,y2])=>{
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    });
+    [[bx,bx,by,by+cl],[bx+bw,bx+bw,by,by+cl],[bx,bx,by+bh,by+bh-cl],[bx+bw,bx+bw,by+bh,by+bh-cl]].forEach(([x1,x2,y1,y2])=>{
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    });
+
+    const cx2 = bx+bw/2, cy2 = by+bh/2, cs = lw*5;
+    ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ff3333';
+    ctx.beginPath(); ctx.moveTo(cx2-cs,cy2); ctx.lineTo(cx2+cs,cy2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx2,cy2-cs); ctx.lineTo(cx2,cy2+cs); ctx.stroke();
+
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.82;
+    ctx.font = `${lw*7}px 'Courier New',monospace`;
+    ctx.fillStyle = '#ffffff'; ctx.textBaseline = 'bottom';
+    const now2 = performance.now();
+    ctx.fillText(`SUBJ_${fi}_ID:${subjectId}`, bx, by - lw*9);
+    ctx.fillText(`BPM:${Math.round(simulatedBPM+Math.sin(now2/400)*2)}  CONF:${(0.82+Math.sin(now2/700)*0.1).toFixed(2)}`, bx, by - lw*1);
+
+    ctx.globalAlpha = 0.15; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = lw*0.8;
+    const scanY = by + ((now2*0.04) % bh);
+    ctx.beginPath(); ctx.moveTo(bx,scanY); ctx.lineTo(bx+bw,scanY); ctx.stroke();
+    ctx.restore();
+  });
+
+  ctx.restore();
+}
+
+// ── Audio Engine ──────────────────────────────────────────────────────────
+let AC = null;
+let lifeGain, deathGain, masterGain;
+let heartOsc, heartGain;
+let noiseSource, noiseGainNode, noiseFilter;
+let glitchOsc, glitchGain;
+let droneOsc1, droneOsc2, droneGain;
+let droneFilter, droneReverb;
+let lifeFilter;
+
+function initAudio() {
+  if (AC) return;
+  AC = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = AC.createGain(); masterGain.gain.setValueAtTime(0.72, AC.currentTime);
+  masterGain.connect(AC.destination);
+
+  lifeGain = AC.createGain(); lifeGain.gain.setValueAtTime(0, AC.currentTime);
+  lifeFilter = AC.createBiquadFilter(); lifeFilter.type = 'lowpass';
+  lifeFilter.frequency.setValueAtTime(18000, AC.currentTime);
+  lifeGain.connect(lifeFilter); lifeFilter.connect(masterGain);
+
+  heartOsc = AC.createOscillator(); heartGain = AC.createGain();
+  heartOsc.type = 'sine'; heartOsc.frequency.setValueAtTime(58, AC.currentTime);
+  heartGain.gain.setValueAtTime(0, AC.currentTime);
+  heartOsc.connect(heartGain); heartGain.connect(lifeGain); heartOsc.start();
+
+  const bufSize = AC.sampleRate * 2;
+  const noiseBuf = AC.createBuffer(1, bufSize, AC.sampleRate);
+  const nd = noiseBuf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) nd[i] = Math.random() * 2 - 1;
+  noiseSource = AC.createBufferSource(); noiseSource.buffer = noiseBuf; noiseSource.loop = true;
+  noiseGainNode = AC.createGain(); noiseGainNode.gain.setValueAtTime(0, AC.currentTime);
+  noiseFilter = AC.createBiquadFilter(); noiseFilter.type = 'bandpass';
+  noiseFilter.frequency.setValueAtTime(3200, AC.currentTime); noiseFilter.Q.setValueAtTime(1.2, AC.currentTime);
+  noiseSource.connect(noiseFilter); noiseFilter.connect(noiseGainNode); noiseGainNode.connect(lifeGain);
+  noiseSource.start();
+
+  glitchOsc = AC.createOscillator(); glitchGain = AC.createGain();
+  glitchOsc.type = 'sawtooth'; glitchOsc.frequency.setValueAtTime(880, AC.currentTime);
+  glitchGain.gain.setValueAtTime(0, AC.currentTime);
+  glitchOsc.connect(glitchGain); glitchGain.connect(lifeGain); glitchOsc.start();
+
+  deathGain = AC.createGain(); deathGain.gain.setValueAtTime(0, AC.currentTime);
+  droneReverb = AC.createConvolver(); droneReverb.buffer = buildReverbIR(AC, 4.5, 2.8);
+  droneFilter = AC.createBiquadFilter(); droneFilter.type = 'lowpass';
+  droneFilter.frequency.setValueAtTime(600, AC.currentTime);
+  droneOsc1 = AC.createOscillator(); droneOsc2 = AC.createOscillator(); droneGain = AC.createGain();
+  droneOsc1.type = 'sine'; droneOsc2.type = 'sine';
+  droneOsc1.frequency.setValueAtTime(36, AC.currentTime);
+  droneOsc2.frequency.setValueAtTime(36.18, AC.currentTime);
+  droneGain.gain.setValueAtTime(0.55, AC.currentTime);
+  droneOsc1.connect(droneGain); droneOsc2.connect(droneGain);
+  droneGain.connect(droneFilter); droneFilter.connect(droneReverb);
+  droneReverb.connect(deathGain); deathGain.connect(masterGain);
+  droneOsc1.start(); droneOsc2.start();
+}
+
+function buildReverbIR(ac, duration, decay) {
+  const rate = ac.sampleRate, length = Math.floor(rate * duration);
+  const ir = ac.createBuffer(2, length, rate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    for (let i = 0; i < length; i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/length, decay);
+  }
+  return ir;
+}
+
+let heartbeatInterval = null, currentBPM = 72;
+function scheduleHeartbeat() {
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
+  heartbeatInterval = setInterval(() => {
+    if (appState !== S.ZOOMING_IN || !AC) return;
+    const now = AC.currentTime;
+    heartGain.gain.cancelScheduledValues(now);
+    heartGain.gain.setValueAtTime(0, now);
+    heartGain.gain.linearRampToValueAtTime(0.9, now + 0.02);
+    heartGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+  }, 60000 / currentBPM);
+}
+
+let glitchInterval = null;
+function scheduleGlitch() {
+  if (glitchInterval) clearInterval(glitchInterval);
+  glitchInterval = setInterval(() => {
+    if (appState !== S.ZOOMING_IN || !AC) return;
+    const now = AC.currentTime;
+    glitchOsc.frequency.setValueAtTime(600 + Math.random()*3400, now);
+    glitchGain.gain.cancelScheduledValues(now);
+    glitchGain.gain.setValueAtTime(0, now);
+    glitchGain.gain.linearRampToValueAtTime(0.12 + Math.random()*0.1, now + 0.005);
+    glitchGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04 + Math.random()*0.08);
+  }, 120 + Math.random()*180);
+}
+
+function updateAudio() {
+  if (!AC) return;
+  const now = AC.currentTime, t = 0.04;
+  if (appState === S.ZOOMING_IN) {
+    const logS  = Math.log(Math.max(1, scale));
+    const norm  = Math.min(1, logS / Math.log(200));
+    lifeGain.gain.setTargetAtTime(0.85, now, t);
+    noiseFilter.frequency.setTargetAtTime(800 + norm*7000, now, t);
+    noiseGainNode.gain.setTargetAtTime(0.08 + norm*0.18, now, t);
+    const newBPM = 72 + norm*88;
+    if (Math.abs(newBPM - currentBPM) > 4) { currentBPM = newBPM; scheduleHeartbeat(); }
+    heartOsc.frequency.setTargetAtTime(45 + norm*55, now, t);
+    if (!glitchInterval) scheduleGlitch();
+    lifeFilter.frequency.setTargetAtTime(18000, now, t*2);
+    deathGain.gain.setTargetAtTime(0, now, t);
+  } else if (appState === S.ZOOMING_OUT) {
+    const logS  = Math.log(Math.max(0.01, scale));
+    const norm  = Math.max(0, Math.min(1, 1 + logS / Math.log(200)));
+    lifeFilter.frequency.setTargetAtTime(180, now, 0.06);
+    lifeGain.gain.setTargetAtTime(norm*0.3, now, t);
+    heartGain.gain.setTargetAtTime(0, now, 0.08);
+    noiseGainNode.gain.setTargetAtTime(norm*0.04, now, t);
+    deathGain.gain.setTargetAtTime(0.7*norm, now, t*1.5);
+    droneFilter.frequency.setTargetAtTime(200 + norm*400, now, t);
+  } else {
+    lifeGain.gain.setTargetAtTime(0, now, 0.2);
+    deathGain.gain.setTargetAtTime(0, now, 0.8);
+    heartGain.gain.setTargetAtTime(0, now, 0.1);
+  }
+}
+
+function stopAllAudio() {
+  if (!AC) return;
+  if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
+  if (glitchInterval)    { clearInterval(glitchInterval);    glitchInterval    = null; }
+  const now = AC.currentTime;
+  lifeGain.gain.setTargetAtTime(0, now, 0.15);
+  deathGain.gain.setTargetAtTime(0, now, 0.4);
+  heartGain.gain.setTargetAtTime(0, now, 0.08);
+}
+
+// ── Input handling ────────────────────────────────────────────────────────
+birthInput.addEventListener('input', () => {
+  let v = birthInput.value.replace(/[^0-9]/g, '');
+  if (v.length > 4) v = v.slice(0,4) + '-' + v.slice(4);
+  if (v.length > 7) v = v.slice(0,7) + '-' + v.slice(7);
+  birthInput.value = v.slice(0, 10);
+  errorMsg.textContent = '';
+});
+birthInput.addEventListener('keydown', e => { if (e.key === 'Enter') initLife(); });
+initBtn.addEventListener('click', initLife);
+
+function initLife() {
+  const val = birthInput.value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) { errorMsg.textContent = '× Invalid format — use YYYY-MM-DD'; return; }
+  const birth = new Date(val + 'T00:00:00');
+  if (isNaN(birth.getTime()))  { errorMsg.textContent = '× Invalid date'; return; }
+  if (birth >= TODAY)           { errorMsg.textContent = '× Date must be in the past'; return; }
+  const weeks = Math.floor((TODAY - birth) / (7 * 24 * 3600 * 1000));
+  if (weeks > COLS * ROWS)      { errorMsg.textContent = '× Exceeds 90 years — beyond the grid'; return; }
+
+  birthDateStr  = val;
+  lifeWeeks     = weeks;
+  currentWeek   = Math.max(0, weeks - 1);
+  currentCol    = currentWeek % COLS;
+  currentRow    = Math.floor(currentWeek / COLS);
+  ageStr        = ((TODAY - birth) / (365.25 * 24 * 3600 * 1000)).toFixed(1);
+  totalWeeksStr = weeks.toLocaleString();
+
+  weeksLabel.textContent = `— ${totalWeeksStr} weeks lived —`;
+  statusBar.innerHTML    = `Age: ${ageStr} years &nbsp;|&nbsp; Born: ${birthDateStr} &nbsp;|&nbsp; Today: ${TODAY_STR}`;
+
+  // Force correct dimensions before first render
+  resize();
+  pivotX = originX + currentCol * (CELL + GAP) + CELL / 2;
+  pivotY = originY + currentRow * (CELL + GAP) + CELL / 2;
+
+  inputScreen.classList.add('hidden');
+  setTimeout(() => { inputScreen.style.display = 'none'; }, 900);
+
+  initAudio();
+  initCamera();
+
+  appState   = S.FILLING;
+  filledUpTo = -1;
+  fillTarget = currentWeek;
+
+  requestAnimationFrame(tick);
+}
+
+// ── Dive-through captures ─────────────────────────────────────────────────
+const MAX_DIVE_Z   = 800;
+const DIVE_CAPS_N  = 56;
+let diveCaps       = [];      // { img, w, h, worldZ, angle, ring, bx, by }
+let diveCapsLoaded = false;
+
+async function loadDiveCaptures() {
+  if (diveCapsLoaded) return;
+  diveCapsLoaded = true;
+  try {
+    const { data, error } = await supa.storage.from('captures').list('', {
+      limit: 100, sortBy: { column: 'created_at', order: 'desc' }
+    });
+    if (error || !data || data.length === 0) return;
+
+    // 拿到公開 URL 然後載入成 Image
+    const items = data.filter(f => f.name.endsWith('.png')).slice(0, DIVE_CAPS_N);
+    const loaded = await Promise.all(items.map((file, i) => new Promise(resolve => {
+      const { data: urlData } = supa.storage.from('captures').getPublicUrl(file.name);
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve({ img, w: img.naturalWidth, h: img.naturalHeight, seed: i });
+      img.onerror = () => resolve(null);
+      img.src = urlData.publicUrl;
+    })));
+
+    const valid = loaded.filter(Boolean);
+    diveCaps = valid.map((cap, i) => {
+      const angle  = i * 2.39996;
+      const t      = i / Math.max(valid.length - 1, 1);
+      const worldZ = Math.exp(t * Math.log(MAX_DIVE_Z));
+      const ring   = 0.30 + (i % 6) * 0.095;
+      return { ...cap, worldZ, angle, ring, bx: Math.cos(angle), by: Math.sin(angle) };
+    });
+  } catch (e) { /* 靜默失敗 */ }
+}
+
+function projectDiveCap(cap, sc) {
+  const rel = sc / cap.worldZ;
+  if (rel < 0.012 || rel > 4.5) return null;
+  const dodge = rel < 1.4 ? Math.pow(Math.max(0, rel - 0.2) / 1.2, 1.9) * 0.58 : 0.58;
+  const r  = cap.ring + dodge;
+  const cx = W / 2 + cap.bx * r * W * 0.44;
+  const cy = H / 2 + cap.by * r * H * 0.38;
+  const size = rel * 1.06;
+  const sw = cap.w * size, sh = cap.h * size;
+  let alpha;
+  if      (rel < 0.04) alpha = (rel - 0.012) / 0.028;
+  else if (rel < 0.55) alpha = 0.86;
+  else if (rel < 1.0)  alpha = 0.86 - (rel - 0.55) / 0.45 * 0.28;
+  else if (rel < 2.2)  alpha = 0.58 - (rel - 1.0)  / 1.2  * 0.44;
+  else                 alpha = Math.max(0, 0.14 - (rel - 2.2) / 2.3);
+  return { cx, cy, sw, sh, alpha: Math.max(0, alpha), rel };
+}
+
+function drawDiveCaptures(sc) {
+  if (diveCaps.length === 0) return;
+  const visible = [];
+  for (const cap of diveCaps) {
+    const p = projectDiveCap(cap, sc);
+    if (p) visible.push({ cap, p });
+  }
+  visible.sort((a, b) => a.p.rel - b.p.rel);
+  for (const { cap, p } of visible) {
+    ctx.save();
+    ctx.globalAlpha = p.alpha;
+    ctx.drawImage(cap.img, p.cx - p.sw / 2, p.cy - p.sh / 2, p.sw, p.sh);
+    ctx.restore();
+  }
+  // 深度 vignette
+  const depth = Math.min(1, (sc - 1) / 40);
+  if (depth > 0.02) {
+    const vg = ctx.createRadialGradient(W/2, H/2, W*0.15, W/2, H/2, Math.max(W,H)*0.72);
+    vg.addColorStop(0, 'rgba(245,245,240,0)');
+    vg.addColorStop(1, `rgba(245,245,240,${depth * 0.55})`);
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  }
+}
+
+// ── Texture helpers ───────────────────────────────────────────────────────
+function drawHalftone(cx, cy, radius, density, alpha) {
+  ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = '#1a1a1a';
+  const spacing = 3.5 / density, r2 = radius * radius;
+  for (let dx = -radius; dx < radius; dx += spacing) {
+    for (let dy = -radius; dy < radius; dy += spacing) {
+      if (dx*dx+dy*dy > r2) continue;
+      const dist = Math.sqrt(dx*dx+dy*dy), t = 1-dist/radius;
+      const dotR = spacing*0.4*(0.3+t*0.7)*(0.7+pseudoRand(dx|0,dy|0,5)*0.6);
+      ctx.beginPath(); ctx.arc(cx+dx,cy+dy,dotR,0,Math.PI*2); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawTypoFragment(x, y, alpha) {
+  if (alpha < 0.05) return;
+  const words = ['MEMENTO','MORI','WEEK','YEAR','TIME','NOW','END','LIFE','VOID','52','90','1','—'];
+  ctx.save(); ctx.globalAlpha = alpha*0.18; ctx.fillStyle = '#111';
+  for (let i = 0; i < 6; i++) {
+    const word = words[Math.floor(pseudoRand(i, noiseOff|0, 3)*words.length)];
+    ctx.font = `${8+pseudoRand(i,1,4)*28}px 'Courier New',monospace`;
+    ctx.fillText(word, x+(pseudoRand(i,0,1)-0.5)*300*alpha, y+(pseudoRand(i,0,2)-0.5)*300*alpha);
+  }
+  ctx.restore();
+}
+
+function drawPaperFibers(cx, cy, radius, alpha) {
+  ctx.save(); ctx.globalAlpha = alpha*0.07; ctx.strokeStyle = '#555'; ctx.lineWidth = 0.3;
+  for (let i = 0; i < 40; i++) {
+    const angle = pseudoRand(i,7,noiseOff*0.01)*Math.PI, len = 20+pseudoRand(i,8,0)*80;
+    const px = cx+(pseudoRand(i,9,0)-0.5)*radius*2, py = cy+(pseudoRand(i,10,0)-0.5)*radius*2;
+    ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px+Math.cos(angle)*len,py+Math.sin(angle)*len); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawMoire() {
+  if (scale > 8) return;
+  const fo = Math.max(0, 1-(scale-1)/4);
+  if (fo < 0.01) return;
+  const t = noiseOff*0.3;
+  ctx.save(); ctx.strokeStyle = '#000'; ctx.lineWidth = 0.4;
+  ctx.globalAlpha = 0.035*fo;
+  for (let x = -W; x < W*2; x += 5) { ctx.beginPath(); ctx.moveTo(x+Math.sin(t*0.5)*2,0); ctx.lineTo(x+100+Math.cos(t*0.3)*3,H); ctx.stroke(); }
+  ctx.globalAlpha = 0.02*fo;
+  for (let x = -W; x < W*2; x += 7) { ctx.beginPath(); ctx.moveTo(x+Math.sin(t*0.7+1)*1.5,0); ctx.lineTo(x+80+Math.cos(t*0.2)*2,H); ctx.stroke(); }
+  ctx.restore();
+}
+
+// ── Grid draw ─────────────────────────────────────────────────────────────
+function drawGrid(sc, px, py, visibleFilled) {
+  if (auraRevealed && auraAlpha < 1) {
+    auraAlpha = Math.min(1, (performance.now() - auraRevealStart) / AURA_REVEAL_DURATION);
+  }
+
+  ctx.save();
+  ctx.translate(px, py); ctx.scale(sc, sc); ctx.translate(-px, -py);
+  const r = CELL / 2;
+
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const idx = row * COLS + col;
+      const cx  = originX + col * (CELL + GAP) + r;
+      const cy  = originY + row * (CELL + GAP) + r;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+
+      if (idx === currentWeek) {
+        ctx.fillStyle = blinkOn
+          ? (auraColor ? `hsla(${auraColor.h},${auraColor.s}%,${auraColor.l}%,${0.7+auraAlpha*0.25})` : 'rgba(192,57,43,0.85)')
+          : 'rgba(100,100,100,0.5)';
+        ctx.fill();
+      } else if (idx < visibleFilled) {
+        if (auraColor && auraAlpha > 0) {
+          ctx.strokeStyle = `hsla(${auraColor.h},${auraColor.s}%,${auraColor.l}%,${auraAlpha*0.35})`;
+          ctx.lineWidth = 0.6;
+        } else {
+          ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 0.3;
+        }
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = '#f5f5f0'; ctx.fill();
+        ctx.strokeStyle = '#c5c5bf'; ctx.lineWidth = 0.5; ctx.stroke();
+      }
+    }
+  }
+
+  // Aura wash
+  if (auraColor && auraAlpha > 0) {
+    ctx.save();
+    const gcx = originX + TOTAL_W / 2, gcy = originY + TOTAL_H / 2;
+    const gradRadius = Math.max(TOTAL_W, TOTAL_H) * 0.7;
+    if (isFinite(gcx) && isFinite(gcy) && isFinite(gradRadius) && gradRadius > 0) {
+      ctx.beginPath();
+      for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < COLS; col++) {
+          const idx = row * COLS + col;
+          if (idx >= visibleFilled && idx !== currentWeek) continue;
+          const cx = originX + col*(CELL+GAP)+r, cy = originY + row*(CELL+GAP)+r;
+          ctx.moveTo(cx+r, cy); ctx.arc(cx, cy, r, 0, Math.PI*2);
+        }
+      }
+      ctx.clip();
+      const grad = ctx.createRadialGradient(gcx, gcy, 0, gcx, gcy, gradRadius);
+      const { h, s, l } = auraColor;
+      grad.addColorStop(0,   `hsla(${h},${s}%,${l}%,${auraAlpha*0.38})`);
+      grad.addColorStop(0.6, `hsla(${h},${s}%,${l-10}%,${auraAlpha*0.22})`);
+      grad.addColorStop(1,   `hsla(${h},${s}%,${l-20}%,${auraAlpha*0.08})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(originX, originY, TOTAL_W, TOTAL_H);
+    }
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+// ── Render ────────────────────────────────────────────────────────────────
+function render(visibleFilled) {
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#f5f5f0'; ctx.fillRect(0, 0, W, H);
+
+  drawMoire();
+
+  const gridFade = Math.max(0, 1 - (scale - 3) / 4);
+
+  if (gridFade > 0) {
+    ctx.save(); ctx.globalAlpha = gridFade;
+    drawWebcamMasked(scale, pivotX, pivotY, visibleFilled);
+    ctx.restore();
+  }
+  if (gridFade > 0) {
+    ctx.save(); ctx.globalAlpha = gridFade;
+    drawGrid(scale, pivotX, pivotY, visibleFilled);
+    ctx.restore();
+  }
+  if (gridFade > 0) {
+    ctx.save(); ctx.globalAlpha = gridFade;
+    drawFaceTracking(scale, pivotX, pivotY);
+    ctx.restore();
+  }
+
+  // dive-through captures（scale > 3 開始出現，避免干擾初始 grid）
+  if (scale > 3 && (appState === S.ZOOMING_IN)) {
+    drawDiveCaptures(scale);
+  }
+
+  if (scale > 2) {
+    const zoomT = Math.min(1, (scale-2)/10);
+    drawPaperFibers(W/2, H/2, Math.min(W,H)*0.7, zoomT);
+    drawHalftone(W/2, H/2, Math.min(W,H)*0.55, Math.min(scale/8,1), zoomT*0.9);
+    drawTypoFragment(W/2, H/2, zoomT);
+    const vg = ctx.createRadialGradient(W/2,H/2,0, W/2,H/2, Math.max(W,H)*0.6);
+    vg.addColorStop(0,'rgba(245,245,240,0)'); vg.addColorStop(1,`rgba(245,245,240,${0.5*zoomT})`);
+    ctx.fillStyle = vg; ctx.fillRect(0,0,W,H);
+  }
+
+  if (scale < 2 || appState === S.ZOOMING_OUT) {
+    const ga = 0.022*(appState===S.ZOOMING_OUT?Math.min(1,scale):1);
+    ctx.save(); ctx.globalAlpha = ga;
+    for (let i = 0; i < 700; i++) {
+      ctx.fillStyle = `rgba(0,0,0,${0.3+pseudoRand(i,noiseOff|0,3)*0.7})`;
+      ctx.fillRect(pseudoRand(i,noiseOff|0,0)*W, pseudoRand(i,noiseOff|0,1)*H, pseudoRand(i,noiseOff|0,2)*1.5, pseudoRand(i,noiseOff|0,2)*1.5);
+    }
+    ctx.restore();
+  }
+}
+
+// ── Tick ──────────────────────────────────────────────────────────────────
+let lastTime = 0;
+
+function tick(t) {
+  const dt = Math.min((t - lastTime) / 1000, 0.05);
+  lastTime = t; noiseOff += dt * 12;
+  blinkTimer += dt;
+  if (blinkTimer > 0.55) { blinkOn = !blinkOn; blinkTimer = 0; }
+
+  if (appState === S.FILLING) {
+    const remaining = fillTarget - filledUpTo;
+    if (remaining <= 0) {
+      filledUpTo = fillTarget; appState = S.READY; onGridReady();
+    } else {
+      filledUpTo = Math.min(fillTarget, filledUpTo + Math.max(4, 200*Math.sqrt(remaining/Math.max(1,fillTarget)))*dt);
+    }
+    render(Math.floor(filledUpTo)+1); requestAnimationFrame(tick);
+
+  } else if (appState === S.READY) {
+    render(currentWeek+1); requestAnimationFrame(tick);
+
+  } else if (appState === S.ZOOMING_IN) {
+    zoomVelocity += (0.5 + zoomVelocity*0.12)*dt; zoomVelocity = Math.min(zoomVelocity,2.8);
+    scale *= Math.pow(Math.E, zoomVelocity*dt);
+    updateAudio(); render(currentWeek+1); requestAnimationFrame(tick);
+
+  } else if (appState === S.ZOOMING_OUT) {
+    scale *= Math.pow(0.42, dt); updateAudio();
+    if (scale < 0.002) { appState = S.DEAD; showDeath(); }
+    else { render(currentWeek+1); requestAnimationFrame(tick); }
+  }
+}
+
+// ── Grid ready ────────────────────────────────────────────────────────────
+function onGridReady() {
+  statusBar.style.opacity = '1';
+  labelEl.textContent = `Life is a microscopic magnification  ·  ${totalWeeksStr} weeks`;
+  labelEl.style.opacity = '1';
+  setTimeout(() => { hintEl.style.opacity = '1'; }, 800);
+  setTimeout(() => {
+    captureReady = true;
+    positionCaptureOverlay();
+    showDismissBtn(); // show × immediately, stays until clicked
+  }, 1200);
+}
+
+// ── Capture ───────────────────────────────────────────────────────────────
+function captureGrid() {
+  const padding = 16;
+  const cropX = Math.floor(originX - padding), cropY = Math.floor(originY - padding);
+  const cropW = Math.ceil(TOTAL_W + padding*2), cropH = Math.ceil(TOTAL_H + padding*2);
+  const offscreen = document.createElement('canvas');
+  offscreen.width = cropW; offscreen.height = cropH;
+  const octx = offscreen.getContext('2d');
+  octx.fillStyle = '#f5f5f0'; octx.fillRect(0,0,cropW,cropH);
+  octx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+  octx.font = '10px "Courier New",monospace';
+  octx.fillStyle = 'rgba(150,150,140,0.9)'; octx.textAlign = 'center';
+  octx.fillText(`${birthDateStr}  ·  week ${totalWeeksStr}  ·  age ${ageStr}`, cropW/2, cropH-5);
+  const dataURL = offscreen.toDataURL('image/png');
+
+  // 下載到本地
+  const link = document.createElement('a');
+  link.download = `life_${birthDateStr}_week${lifeWeeks}.png`;
+  link.href = dataURL; link.click();
+
+  // 靜默上傳到 Supabase（背景進行，不影響使用者體驗）
+  uploadCapture(dataURL);
+}
+
+async function uploadCapture(dataURL) {
+  try {
+    const res = await fetch(dataURL);
+    const blob = await res.blob();
+    const filename = `${Date.now()}_${birthDateStr}_w${lifeWeeks}.png`;
+    await supa.storage.from('captures').upload(filename, blob, {
+      contentType: 'image/png',
+      upsert: false,
+    });
+  } catch (e) {
+    // 靜默失敗，不影響使用者
+  }
+}
+// ── Hold interaction ──────────────────────────────────────────────────────
+function onPress(e) {
+  if (appState === S.DEAD || appState === S.FILLING) return;
+  pressStartTime = performance.now();
+  // Record mouse position for grid hit test
+  const mx = e ? e.clientX : W/2, my = e ? e.clientY : H/2;
+  isHolding = true;
+  holdStartTime = pressStartTime;
+  zoomVelocity = appState === S.ZOOMING_OUT ? Math.max(zoomVelocity*0.2, 0.3) : 0.3;
+  // Don't start zoom yet — wait to see if it's a short press
+  // Store pending state
+  onPress._mx = mx; onPress._my = my;
+}
+
+function onRelease(e) {
+  if (!isHolding || appState === S.DEAD) return;
+  const pressDuration = performance.now() - pressStartTime;
+  isHolding = false;
+
+  if (captureReady && pressDuration < LONG_PRESS_MS && isOverGrid(onPress._mx || W/2, onPress._my || H/2)) {
+    // SHORT PRESS on grid → capture
+    flashViewfinder(() => captureGrid());
+    // If we had started zooming, stop it
+    if (appState === S.ZOOMING_IN) {
+      appState = S.READY; scale = 1; zoomVelocity = 0;
+    }
+  } else {
+    // LONG PRESS → trigger zoom-out (zoom-in was already running)
+    if (appState === S.ZOOMING_IN || appState === S.READY) {
+      appState = S.ZOOMING_OUT;
+      if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
+      if (glitchInterval)    { clearInterval(glitchInterval);    glitchInterval    = null; }
+      requestAnimationFrame(tick);
+    }
+  }
+}
+
+// Separate: start zoom after threshold
+canvas.addEventListener('mousedown', (e) => {
+  onPress(e);
+  // After threshold, begin zoom-in
+  onPress._zoomTimer = setTimeout(() => {
+    if (!isHolding) return; // already released (short press)
+    appState = S.ZOOMING_IN;
+    hintEl.style.opacity  = '0';
+    labelEl.style.opacity = '0';
+    clearViewfinder(); captureHoverActive = false;
+    captureReady = false;
+    if (dismissBtn) { dismissBtn.style.opacity = '0'; dismissBtn.style.pointerEvents = 'none'; }
+    loadDiveCaptures(); // 開始從 Supabase 拉圖
+    scheduleHeartbeat(); scheduleGlitch();
+    requestAnimationFrame(tick);
+  }, LONG_PRESS_MS);
+});
+
+document.addEventListener('mouseup', (e) => {
+  if (onPress._zoomTimer) { clearTimeout(onPress._zoomTimer); onPress._zoomTimer = null; }
+  onRelease(e);
+});
+
+canvas.addEventListener('touchstart', (e) => { e.preventDefault(); onPress(e.touches[0]); }, { passive: false });
+document.addEventListener('touchend', (e) => {
+  if (onPress._zoomTimer) { clearTimeout(onPress._zoomTimer); onPress._zoomTimer = null; }
+  onRelease(e.changedTouches ? e.changedTouches[0] : e);
+});
+
+// ── Death ─────────────────────────────────────────────────────────────────
+function showDeath() {
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#f5f5f0'; ctx.fillRect(0,0,W,H);
+  statusBar.style.opacity = '0';
+  stopAllAudio();
+  setTimeout(() => { deathText.style.transition='opacity 2.5s cubic-bezier(0.4,0,0.2,1)'; deathText.style.opacity='1'; }, 400);
+  setTimeout(() => { resetBtn.style.transition='opacity 1.5s ease'; resetBtn.style.opacity='1'; resetBtn.style.pointerEvents='all'; }, 3200);
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────
+resetBtn.addEventListener('click', () => {
+
+  scale = 1; zoomVelocity = 0; isHolding = false;
+  filledUpTo = -1; appState = S.INPUT;
+  blinkOn = true; blinkTimer = 0;
+
+  stopAllAudio();
+  stopCamera();
+  detectedFaces = [];
+  subjectId = Math.floor(Math.random() * 89999 + 10000);
+  auraColor = null; auraAlpha = 0; auraRevealed = false;
+  const auraEl = document.getElementById('aura-label');
+  if (auraEl) auraEl.style.opacity = '0';
+
+  deathText.style.transition = 'opacity 0.5s ease'; deathText.style.opacity = '0';
+  resetBtn.style.opacity = '0'; resetBtn.style.pointerEvents = 'none';
+  statusBar.style.opacity = '0'; labelEl.style.opacity = '0'; hintEl.style.opacity = '0';
+  captureReady = false; captureHoverActive = false; captureDismissed = false;
+  clearViewfinder();
+  if (dismissBtn) { dismissBtn.style.opacity = '0'; dismissBtn.style.pointerEvents = 'none'; }
+
+  ctx.clearRect(0,0,W,H);
+  inputScreen.style.display = 'flex';
+  requestAnimationFrame(() => inputScreen.classList.remove('hidden'));
+  birthInput.value = ''; errorMsg.textContent = '';
+});
+</script>
+</body>
+</html>
