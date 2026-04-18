@@ -271,7 +271,7 @@
 
       <div class="tut-step" id="ts1">
         <div style="width:240px;height:160px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
-          <div id="tzg-wrap" style="transform:scale(1);transition:transform 2s ease,opacity 1s ease;">
+          <div id="tzg-wrap" style="transform:(1);transition:transform 2s ease,opacity 1s ease;">
             <div style="display:grid;grid-template-columns:repeat(12,18px);gap:3px;" id="tzg"></div>
           </div>
         </div>
@@ -1174,7 +1174,7 @@ function render(visibleFilled) {
       drawGrid(scale, px, py, visibleFilled);
       ctx.restore();
     }
-    if (scale > 20) drawDiveCaptures(scale);
+    if (scale > 15) drawDiveCaptures(scale);
     return;
   }
 
